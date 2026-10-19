@@ -1,0 +1,96 @@
+============================================================================
+B3 - EXPERIMENTO DE CONCORRENCIA COM DUAS SESSOES SIMULTANEAS
+Executado em 18/10/2026 20:23
+============================================================================
+
+AMBIENTE
+  SGBD                 : MySQL 8.0.46
+  Nivel de isolamento  : REPEATABLE-READ  (padrao do InnoDB)
+  autocommit da sessao : 0 (desligado pela aplicacao)
+
+Preparacao: as duas sessoes conectam com a conta app_operacional e
+trabalham sobre a tabela entrega.
+
+----------------------------------------------------------------------------
+CENARIO 1 - DUAS SESSOES ALTERAM A MESMA LINHA
+----------------------------------------------------------------------------
+Sessao A abre transacao, altera a entrega 1 e SEGURA o bloqueio por 5s.
+Sessao B tenta alterar a MESMA entrega 1 enquanto A ainda nao confirmou.
+
+[20:23:39.653] Sessao A: START TRANSACTION
+[20:23:39.654] Sessao A: UPDATE entrega 1 -> qualidade B   (sem COMMIT)
+[20:23:41.655] Sessao B: UPDATE na mesma linha -> BLOQUEADA, esperando
+
+  Estado interno observado durante a espera:
+    transacao esperando  : 20009 (thread 382)
+    comando dela         : UPDATE entrega SET qualidade = 'C' WHERE id_entrega = 1
+    bloqueada pela trx   : 20008 (thread 381)
+
+[20:23:44.676] Sessao A: COMMIT - o bloqueio e liberado
+[20:23:44.683] Sessao B: conseguiu apos esperar
+           tempo que B passou esperando: 5.02s
+
+OBSERVADO: o InnoDB aplica bloqueio exclusivo de linha no UPDATE. A
+sessao B nao recebeu erro nem leu valor desatualizado: ficou em espera
+ate o COMMIT de A e so entao aplicou a propria alteracao, sobre o valor
+ja atualizado. O tempo de espera de B corresponde ao tempo que A segurou
+a transacao, o que confirma que a serializacao foi feita pelo bloqueio.
+Se A nunca confirmasse, B esperaria ate innodb_lock_wait_timeout (50s por
+padrao) e receberia o erro 1205, que a aplicacao traduz em mensagem.
+
+----------------------------------------------------------------------------
+CENARIO 2 - O QUE A SESSAO A ENXERGA DO COMMIT DE B (REPEATABLE READ)
+----------------------------------------------------------------------------
+[20:23:44.702] Sessao A: 1a leitura da entrega 1 -> qualidade = C
+[20:23:44.716] Sessao B: UPDATE para 'A' + COMMIT (confirmado)
+[20:23:44.717] Sessao A: 2a leitura, mesma transacao -> qualidade = C
+[20:23:44.718] Sessao A: COMMIT e nova leitura -> qualidade = A
+
+OBSERVADO: leitura repetida. Dentro da mesma transacao, A leu duas
+vezes o valor 'C', mesmo depois de B ter confirmado 'A'.
+Isso e REPEATABLE READ funcionando: A trabalha sobre uma fotografia
+consistente tirada na primeira leitura (MVCC). So apos o proprio
+COMMIT, A passou a enxergar 'A'.
+
+----------------------------------------------------------------------------
+CENARIO 3 - DEADLOCK PROVOCADO (ORDEM INVERSA DE BLOQUEIO)
+----------------------------------------------------------------------------
+A trava a linha 1 e depois pede a 2. B trava a 2 e depois pede a 1.
+
+  Sessao A: travou linha 1 -> travou linha 2
+             desfecho: COMMIT
+  Sessao B: travou linha 2 -> ficou esperando
+             desfecho: ABORTADA pelo servidor - erro 1213: 1213 (40001): Deadlock found when trying to get lock; try re
+
+OBSERVADO: deadlock detectado pelo InnoDB. Diferente do cenario 1,
+aqui ninguem poderia terminar esperando - cada uma segurava o que a
+outra precisava. O InnoDB percebeu o ciclo e escolheu uma vitima,
+abortando-a com erro 1213 para que a outra prosseguisse. A vitima e
+desfeita por completo, entao nao resta estado pela metade. Na
+aplicacao, esse erro e traduzido em 'houve conflito... tente
+novamente', e a operacao pode ser repetida com seguranca.
+
+============================================================================
+JUSTIFICATIVA DO NIVEL DE ISOLAMENTO ADOTADO
+============================================================================
+A aplicacao mantem REPEATABLE READ, que e o padrao do InnoDB, por tres razoes
+ligadas ao que este sistema faz:
+
+1. A transacao central - fechar prestacao de contas - primeiro SOMA as entregas
+   do associado e depois grava o resultado. Em READ COMMITTED, uma entrega
+   confirmada por outra sessao entre a soma e a gravacao mudaria o total sem que
+   a transacao percebesse, e a prestacao seria gravada com um valor que ja nao
+   corresponde as entregas. REPEATABLE READ garante que a soma e a gravacao
+   enxerguem a mesma fotografia dos dados.
+
+2. Nao precisamos de SERIALIZABLE. Ele acrescentaria bloqueio de intervalo em
+   toda leitura, encarecendo as consultas do patio, que sao frequentes, para
+   resolver um problema que nao temos: a prestacao e unica por associado e
+   safra (uq_prestacao_associado_safra), entao duas sessoes nao conseguem criar
+   fechamentos concorrentes para o mesmo par - a propria restricao do banco
+   recusa o segundo.
+
+3. Em troca, aceitamos conviver com bloqueio e com a possibilidade de deadlock,
+   como os cenarios 1 e 3 mostraram. A aplicacao trata os dois casos: os erros
+   1205 e 1213 sao convertidos em mensagem que orienta o usuario a repetir a
+   operacao, em vez de exibir a excecao do driver.

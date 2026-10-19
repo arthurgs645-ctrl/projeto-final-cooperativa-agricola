@@ -1,0 +1,20 @@
+﻿=== B7 - OCUPACAO REAL DAS TABELAS ===
+Medido em 18/10/2026 20:24 via information_schema.tables, apos a reconstrucao limpa
+
+tabela	linhas	dados_mb	indices_mb	total_mb	bytes_linha
+entrega	194079	11.52	25.56	37.08	200
+associado	39	0.02	0.05	0.06	1680
+movimento_financeiro	161	0.02	0.05	0.06	407
+auditoria	7	0.02	0.03	0.05	7022
+historico_associado	80	0.02	0.03	0.05	614
+lote	120	0.02	0.03	0.05	410
+prestacao_contas	81	0.02	0.03	0.05	607
+propriedade	40	0.02	0.03	0.05	1229
+safra	40	0.02	0.03	0.05	1229
+associado_cultura	117	0.02	0.02	0.03	280
+associado_pf	29	0.02	0.02	0.03	1130
+associado_pj	10	0.02	0.02	0.03	3277
+cultura	12	0.02	0.02	0.03	2731
+safra_cultura	120	0.02	0.02	0.03	273
+usuario_app	3	0.02	0.02	0.03	10923
+

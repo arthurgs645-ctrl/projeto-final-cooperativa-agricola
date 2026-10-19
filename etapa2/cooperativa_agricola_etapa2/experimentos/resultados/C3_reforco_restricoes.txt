@@ -1,0 +1,113 @@
+﻿============================================================================
+RESPOSTA A DEVOLUTIVA C3 - TESTE DAS RESTRICOES REFORCADAS
+Executado em 18/10/2026 20:22 contra o banco real
+============================================================================
+
+Na Etapa 1 estas quatro regras estavam documentadas mas so eram
+verificadas por consulta. Cada teste abaixo tenta gravar algo que as
+viola e confirma que agora o banco recusa.
+
+--- REGRA 1: autoindicacao (RN03) ---
+[Associado tenta indicar a si mesmo (UPDATE)]
+  comando  : UPDATE associado SET id_associado_indicador = id_associado WHERE id_associado = 5;
+  esperado : RECUSADO | obtido: RECUSADO | confere
+  retorno  : mysql.exe : ERROR 1644 (45000) at line 1: ck_associado_sem_autoindicacao: um associado nao pode indicar a si mesmo
+             No C:\Users\Arthur\AppData\Local\Temp\claude\c--Users-Arthur-Documents-facul\4bf07bc3-8562-4700-aced-5d4e7f4b5853\scrat
+             chpad\teste_reforco.ps1:10 caractere:5
+             +     & $mysql "--defaults-extra-file=$cnf" cooperativa_agricola -e $sq ...
+             +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                 + CategoryInfo          : NotSpecified: (ERROR 1644 (450...icar a si mesmo:String) [], RemoteException
+                 + FullyQualifiedErrorId : NativeCommandError
+
+[Indicacao valida por outro associado continua passando]
+  comando  : UPDATE associado SET id_associado_indicador = 4 WHERE id_associado = 5;
+  esperado : ACEITO | obtido: ACEITO | confere
+
+--- REGRA 2: disjuncao da especializacao (RN04/RN05) ---
+[Associado PF recebe dados de PJ]
+  comando  : INSERT INTO associado_pj (id_associado, cnpj, razao_social) SELECT id_associado, '99999999000199', 'Teste Ltda' FROM associado WHERE tipo_pessoa='PF' LIMIT 1;
+  esperado : RECUSADO | obtido: RECUSADO | confere
+  retorno  : mysql.exe : ERROR 1644 (45000) at line 1: ck_especializacao: associado declarado PF nao pode ter dados de PJ
+             No C:\Users\Arthur\AppData\Local\Temp\claude\c--Users-Arthur-Documents-facul\4bf07bc3-8562-4700-aced-5d4e7f4b5853\scrat
+             chpad\teste_reforco.ps1:10 caractere:5
+             +     & $mysql "--defaults-extra-file=$cnf" cooperativa_agricola -e $sq ...
+             +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                 + CategoryInfo          : NotSpecified: (ERROR 1644 (450...ter dados de PJ:String) [], RemoteException
+                 + FullyQualifiedErrorId : NativeCommandError
+
+[Associado PJ recebe dados de PF]
+  comando  : INSERT INTO associado_pf (id_associado, cpf, data_nascimento) SELECT id_associado, '99999999999', '1990-01-01' FROM associado WHERE tipo_pessoa='PJ' LIMIT 1;
+  esperado : RECUSADO | obtido: RECUSADO | confere
+  retorno  : mysql.exe : ERROR 1644 (45000) at line 1: ck_especializacao: associado declarado PJ nao pode ter dados de PF
+             No C:\Users\Arthur\AppData\Local\Temp\claude\c--Users-Arthur-Documents-facul\4bf07bc3-8562-4700-aced-5d4e7f4b5853\scrat
+             chpad\teste_reforco.ps1:10 caractere:5
+             +     & $mysql "--defaults-extra-file=$cnf" cooperativa_agricola -e $sq ...
+             +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                 + CategoryInfo          : NotSpecified: (ERROR 1644 (450...ter dados de PF:String) [], RemoteException
+                 + FullyQualifiedErrorId : NativeCommandError
+
+[Trocar tipo de associado que ja tem especializacao]
+  comando  : UPDATE associado SET tipo_pessoa='PJ' WHERE id_associado = 1;
+  esperado : RECUSADO | obtido: RECUSADO | confere
+  retorno  : mysql.exe : ERROR 1644 (45000) at line 1: ck_especializacao: remova os dados de PF antes de mudar o tipo
+             No C:\Users\Arthur\AppData\Local\Temp\claude\c--Users-Arthur-Documents-facul\4bf07bc3-8562-4700-aced-5d4e7f4b5853\scrat
+             chpad\teste_reforco.ps1:10 caractere:5
+             +     & $mysql "--defaults-extra-file=$cnf" cooperativa_agricola -e $sq ...
+             +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                 + CategoryInfo          : NotSpecified: (ERROR 1644 (450...de mudar o tipo:String) [], RemoteException
+                 + FullyQualifiedErrorId : NativeCommandError
+
+--- REGRA 3: cronologia do historico (RN15/RN17) ---
+[Periodo que se sobrepoe a outro do mesmo associado]
+  comando  : INSERT INTO historico_associado (id_associado, data_inicio, data_fim, situacao, motivo) SELECT id_associado, DATE_ADD(data_inicio, INTERVAL 1 DAY), data_fim, 'PENDENTE', 'teste de sobreposicao' FROM historico_associado WHERE data_fim IS NOT NULL LIMIT 1;
+  esperado : RECUSADO | obtido: RECUSADO | confere
+  retorno  : mysql.exe : ERROR 1644 (45000) at line 1: ck_historico_cronologia: o periodo informado se sobrepoe a outro ja 
+             registrado
+             No C:\Users\Arthur\AppData\Local\Temp\claude\c--Users-Arthur-Documents-facul\4bf07bc3-8562-4700-aced-5d4e7f4b5853\scrat
+             chpad\teste_reforco.ps1:10 caractere:5
+             +     & $mysql "--defaults-extra-file=$cnf" cooperativa_agricola -e $sq ...
+             +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                 + CategoryInfo          : NotSpecified: (ERROR 1644 (450...o ja registrado:String) [], RemoteException
+                 + FullyQualifiedErrorId : NativeCommandError
+
+[Segundo periodo em aberto para o mesmo associado]
+  comando  : INSERT INTO historico_associado (id_associado, data_inicio, data_fim, situacao, motivo) VALUES (1, '2099-01-01', NULL, 'ATIVO', 'teste de segundo periodo aberto');
+  esperado : RECUSADO | obtido: RECUSADO | confere
+  retorno  : mysql.exe : ERROR 1644 (45000) at line 1: ck_historico_cronologia: o periodo informado se sobrepoe a outro ja 
+             registrado
+             No C:\Users\Arthur\AppData\Local\Temp\claude\c--Users-Arthur-Documents-facul\4bf07bc3-8562-4700-aced-5d4e7f4b5853\scrat
+             chpad\teste_reforco.ps1:10 caractere:5
+             +     & $mysql "--defaults-extra-file=$cnf" cooperativa_agricola -e $sq ...
+             +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                 + CategoryInfo          : NotSpecified: (ERROR 1644 (450...o ja registrado:String) [], RemoteException
+                 + FullyQualifiedErrorId : NativeCommandError
+
+  NOTA: o associado 1 tem periodo aberto desde 2025-07-01 (data_fim NULL).
+  O gatilho trata periodo aberto como se estendendo ao infinito, entao
+  qualquer periodo posterior se sobrepoe a ele. O fluxo correto e fechar
+  o periodo vigente antes de abrir o proximo - exatamente o que o
+  proximo teste faz.
+
+[Fluxo correto: fecha o periodo vigente e abre o seguinte]
+  comando  : UPDATE historico_associado SET data_fim = '2098-12-31' WHERE id_associado = 1 AND data_fim IS NULL; INSERT INTO historico_associado (id_associado, data_inicio, data_fim, situacao, motivo) VALUES (1, '2099-01-01', NULL, 'ATIVO', 'teste de periodo livre');
+  esperado : ACEITO | obtido: ACEITO | confere
+
+--- REGRA 4: entrega dentro do periodo da safra (RN20) ---
+[Entrega com data fora do periodo da safra]
+  comando  : INSERT INTO entrega (id_safra, numero_lote, data_entrega, quantidade, qualidade, preco_unitario_kg, status) VALUES (1, 1, '1999-01-01', 100, 'A', 2.50, 'PENDENTE');
+  esperado : RECUSADO | obtido: RECUSADO | confere
+  retorno  : mysql.exe : ERROR 1644 (45000) at line 1: ck_entrega_periodo: a data da entrega esta fora do periodo da safra
+             No C:\Users\Arthur\AppData\Local\Temp\claude\c--Users-Arthur-Documents-facul\4bf07bc3-8562-4700-aced-5d4e7f4b5853\scrat
+             chpad\teste_reforco.ps1:10 caractere:5
+             +     & $mysql "--defaults-extra-file=$cnf" cooperativa_agricola -e $sq ...
+             +     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+                 + CategoryInfo          : NotSpecified: (ERROR 1644 (450...eriodo da safra:String) [], RemoteException
+                 + FullyQualifiedErrorId : NativeCommandError
+
+[Entrega dentro do periodo da safra]
+  comando  : INSERT INTO entrega (id_safra, numero_lote, data_entrega, quantidade, qualidade, preco_unitario_kg, status) SELECT 1, 1, s.data_inicio, 100, 'A', 2.50, 'PENDENTE' FROM safra s WHERE s.id_safra = 1;
+  esperado : ACEITO | obtido: ACEITO | confere
+
+============================================================================
+RESULTADO: 0 divergencia(s) em 10 testes
+============================================================================

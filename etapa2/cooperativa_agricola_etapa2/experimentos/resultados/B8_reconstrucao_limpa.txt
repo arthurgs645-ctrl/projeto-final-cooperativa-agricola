@@ -1,0 +1,18 @@
+﻿=== RECONSTRUCAO EM MAQUINA LIMPA ===
+Executado em 18/10/2026 20:22
+Checklist Anexo C: 'A aplicacao sobe em maquina limpa seguindo o README'
+Checklist Anexo B: '01_ddl.sql e 02_carga.sql executam sem erro'
+
+DROP DATABASE: ok - o banco foi apagado por completo antes de iniciar
+
+[OK]   01_ddl.sql  (0.7 s)
+[OK]   02_carga.sql  (0.1 s)
+[OK]   03_consultas.sql  (0.1 s)
+[OK]   04_views.sql  (0.1 s)
+[OK]   05_triggers_auditoria.sql  (0.1 s)
+[OK]   06_seguranca_perfis.sql  (0.2 s)
+[OK]   09_reforco_restricoes.sql  (0.1 s)
+[OK]   07_carga_volume.sql  (14 s)
+[OK]   08_otimizacao_indices.sql  (3.1 s)
+
+Scripts com erro: 0 de 9

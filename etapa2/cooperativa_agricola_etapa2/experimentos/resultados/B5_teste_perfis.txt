@@ -1,0 +1,72 @@
+============================================================================
+B5 - TESTE DOS TRES PERFIS DE ACESSO COM LOGIN REAL
+Banco: cooperativa_agricola | MySQL 8.0 | 18/10/2026 20:23
+============================================================================
+
+--- PERFIL 1: LEITURA (papel coop_leitura) ---
+[LEITURA] Consulta a visao com documento mascarado
+  SQL      : SELECT id_associado, nome, documento_mascarado FROM vw_associado_publico LIMIT 3
+  esperado : PERMITIDO | obtido: PERMITIDO | confere
+  retorno  : 3 linha(s): [(1, 'Ana Cardoso', '***.***.000-**'), (2, 'Bruno Ferreira', '***.***.000-**'), (3, 'Carlos Lima', '***.***.000-**')]
+
+[LEITURA] Tenta ler o CPF real na tabela base
+  SQL      : SELECT cpf FROM associado_pf LIMIT 1
+  esperado : NEGADO | obtido: NEGADO | confere
+  retorno  : erro 1142: 1142 (42000): SELECT command denied to user 'app_leitura'@'localhost' for table 'associado
+
+[LEITURA] Tenta ler prestacao de contas por linha
+  SQL      : SELECT * FROM prestacao_contas LIMIT 1
+  esperado : NEGADO | obtido: NEGADO | confere
+  retorno  : erro 1142: 1142 (42000): SELECT command denied to user 'app_leitura'@'localhost' for table 'prestacao
+
+[LEITURA] Le o mesmo dado financeiro pela visao consolidada
+  SQL      : SELECT associado, saldo FROM vw_relatorio_safra_associado WHERE saldo IS NOT NULL LIMIT 3
+  esperado : PERMITIDO | obtido: PERMITIDO | confere
+  retorno  : 3 linha(s): [('Ana Cardoso', Decimal('49059160.73')), ('Victor Teixeira', Decimal('28797.84')), ('Yasmin Zanetti', Decimal('29182.40'))]
+
+[LEITURA] Tenta inserir uma entrega
+  SQL      : INSERT INTO entrega (id_safra,numero_lote,data_entrega,quantidade,qualidade,preco_unitario_kg,status) VALUES (1,1,'2024-01-01',10,'A',1,'PENDENTE')
+  esperado : NEGADO | obtido: NEGADO | confere
+  retorno  : erro 1142: 1142 (42000): INSERT command denied to user 'app_leitura'@'localhost' for table 'entrega'
+
+--- PERFIL 2: OPERACIONAL (papel coop_operacional) ---
+[OPERACIONAL] Consulta lotes
+  SQL      : SELECT id_safra, numero_lote, status FROM lote LIMIT 3
+  esperado : PERMITIDO | obtido: PERMITIDO | confere
+  retorno  : 3 linha(s): [(1, 1, 'ENCERRADO'), (1, 2, 'ENCERRADO'), (1, 3, 'ENCERRADO')]
+
+[OPERACIONAL] Tenta ler prestacao de contas
+  SQL      : SELECT * FROM prestacao_contas LIMIT 1
+  esperado : NEGADO | obtido: NEGADO | confere
+  retorno  : erro 1142: 1142 (42000): SELECT command denied to user 'app_operacional'@'localhost' for table 'prest
+
+[OPERACIONAL] Tenta apagar entrega (estorno deve ser por status)
+  SQL      : DELETE FROM entrega WHERE id_entrega = 999999
+  esperado : NEGADO | obtido: NEGADO | confere
+  retorno  : erro 1142: 1142 (42000): DELETE command denied to user 'app_operacional'@'localhost' for table 'entre
+
+--- PERFIL 3: FINANCEIRO (papel coop_financeiro) ---
+[FINANCEIRO] Consulta prestacao de contas
+  SQL      : SELECT id_prestacao, saldo, status FROM prestacao_contas LIMIT 3
+  esperado : PERMITIDO | obtido: PERMITIDO | confere
+  retorno  : 3 linha(s): [(1, Decimal('17365.92'), 'FECHADA'), (2, Decimal('17666.76'), 'FECHADA'), (3, Decimal('17967.60'), 'FECHADA')]
+
+[FINANCEIRO] Tenta alterar preco de entrega (privilegio revogado)
+  SQL      : UPDATE entrega SET preco_unitario_kg = 99 WHERE id_entrega = 1
+  esperado : NEGADO | obtido: NEGADO | confere
+  retorno  : erro 1142: 1142 (42000): UPDATE command denied to user 'app_financeiro'@'localhost' for table 'entreg
+
+[FINANCEIRO] Tenta alterar cadastro de associado
+  SQL      : UPDATE associado SET nome = 'alterado' WHERE id_associado = 1
+  esperado : NEGADO | obtido: NEGADO | confere
+  retorno  : erro 1142: 1142 (42000): UPDATE command denied to user 'app_financeiro'@'localhost' for table 'associ
+
+============================================================================
+RESULTADO: 0 divergencia(s) em 11 testes
+============================================================================
+
+Observacao sobre o perfil de leitura: ele le o saldo pela visao
+vw_relatorio_safra_associado sem ter SELECT em prestacao_contas. Isso
+funciona porque a visao do MySQL e, por padrao, SQL SECURITY DEFINER -
+executa com o privilegio de quem a criou. E esse mecanismo que permite
+liberar o agregado sem liberar a linha.

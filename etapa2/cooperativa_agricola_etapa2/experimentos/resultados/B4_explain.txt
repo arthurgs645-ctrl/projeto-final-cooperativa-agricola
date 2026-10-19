@@ -1,0 +1,133 @@
+﻿=== B4 - ESTUDO DE DESEMPENHO DE TRES CONSULTAS CRITICAS ===
+Banco: cooperativa_agricola | SGBD: MySQL 8.0 | Data: 18/10/2026 20:23
+
+VOLUME DE DADOS NO MOMENTO DA MEDICAO:
+tabela	linhas
+entrega	200200
+lote	120
+propriedade	40
+associado	40
+prestacao_contas	81
+
+METODO: para cada consulta, o indice e removido para obter o estado 'antes'.
+Mede-se 5 execucoes apos uma execucao de aquecimento, e registra-se media e
+melhor tempo. O tempo inclui o custo de abrir a conexao do cliente mysql, que
+e constante entre as medicoes e por isso nao distorce a comparacao, mas faz o
+percentual de ganho ser mais conservador que o tempo real do servidor. Por isso
+o EXPLAIN ANALYZE tambem e registrado: ele mostra o tempo do servidor isolado.
+
+==============================================================================
+CONSULTA 1 - Janela de recebimento (faixa de data + status)
+==============================================================================
+
+CONSULTA:
+SELECT COUNT(*) AS entregas, SUM(quantidade) AS kg, SUM(quantidade * preco_unitario_kg) AS valor FROM entrega WHERE data_entrega BETWEEN '2024-03-01' AND '2024-06-30' AND status = 'RECEBIDA';
+
+--- PLANO ANTES DO INDICE (EXPLAIN) ---
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	entrega	NULL	range	idx_entrega_data,idx_entrega_status	idx_entrega_data	3	NULL	4815	50.00	Using index condition; Using where
+
+--- EXECUCAO REAL ANTES (EXPLAIN ANALYZE) ---
+EXPLAIN
+-> Aggregate: count(0), sum(entrega.quantidade), sum((entrega.quantidade * entrega.preco_unitario_kg))  (cost=2408 rows=1) (actual time=17.3..17.3 rows=1 loops=1)\n    -> Filter: (entrega.`status` = 'RECEBIDA')  (cost=2167 rows=2408) (actual time=0.981..15.8 rows=3850 loops=1)\n        -> Index range scan on entrega using idx_entrega_data over ('2024-03-01' <= data_entrega <= '2024-06-30'), with index condition: (entrega.data_entrega between '2024-03-01' and '2024-06-30')  (cost=2167 rows=4815) (actual time=0.977..14.7 rows=4815 loops=1)\n
+
+Tempo medido antes: media 54.6 ms, melhor 50.9 ms (5 execucoes, apos aquecimento)
+
+--- INDICE CRIADO ---
+CREATE INDEX idx_entrega_data_status_valor ON entrega (data_entrega, status, quantidade, preco_unitario_kg);
+Justificativa: data_entrega primeiro por ser o predicado de faixa; status em seguida; quantidade e preco ao final para tornar o indice cobridor e evitar acesso a tabela.
+
+--- PLANO DEPOIS DO INDICE (EXPLAIN) ---
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	entrega	NULL	range	idx_entrega_data,idx_entrega_status,idx_entrega_data_status_valor	idx_entrega_data_status_valor	85	NULL	8652	50.00	Using where; Using index
+
+--- EXECUCAO REAL DEPOIS (EXPLAIN ANALYZE) ---
+EXPLAIN
+-> Aggregate: count(0), sum(entrega.quantidade), sum((entrega.quantidade * entrega.preco_unitario_kg))  (cost=2270 rows=1) (actual time=7.58..7.58 rows=1 loops=1)\n    -> Filter: ((entrega.`status` = 'RECEBIDA') and (entrega.data_entrega between '2024-03-01' and '2024-06-30'))  (cost=1837 rows=4326) (actual time=0.207..5.96 rows=3850 loops=1)\n        -> Covering index range scan on entrega using idx_entrega_data_status_valor over ('2024-03-01' <= data_entrega <= '2024-06-30' AND status = 'RECEBIDA')  (cost=1837 rows=8652) (actual time=0.203..2.39 rows=4808 loops=1)\n
+
+Tempo medido depois: media 45 ms, melhor 40.8 ms (5 execucoes, apos aquecimento)
+
+RESULTADO: 54.6 ms -> 45 ms  |  variacao: 17.6%
+
+
+==============================================================================
+CONSULTA 2 - Filtro por status de baixa seletividade (caso negativo)
+==============================================================================
+
+CONSULTA:
+SELECT COUNT(*) AS recebidas FROM entrega WHERE status = 'RECEBIDA';
+
+--- PLANO ANTES DO INDICE (EXPLAIN) ---
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	entrega	NULL	range	idx_entrega_data_status_valor	idx_entrega_data_status_valor	85	NULL	66599	100.00	Using where; Using index for skip scan
+
+--- EXECUCAO REAL ANTES (EXPLAIN ANALYZE) ---
+EXPLAIN
+-> Aggregate: count(0)  (cost=33191 rows=1) (actual time=301..301 rows=1 loops=1)\n    -> Filter: (entrega.`status` = 'RECEBIDA')  (cost=26531 rows=66599) (actual time=0.705..287 rows=160355 loops=1)\n        -> Covering index skip scan on entrega using idx_entrega_data_status_valor over status = 'RECEBIDA'  (cost=26531 rows=66599) (actual time=0.701..246 rows=160355 loops=1)\n
+
+Tempo medido antes: media 233.5 ms, melhor 213.1 ms (5 execucoes, apos aquecimento)
+
+--- INDICE CRIADO ---
+CREATE INDEX idx_entrega_status ON entrega (status);
+Justificativa: Hipotese inicial: indexar status aceleraria o filtro mais comum do sistema. A medicao testa essa hipotese.
+
+--- PLANO DEPOIS DO INDICE (EXPLAIN) ---
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	entrega	NULL	ref	idx_entrega_data_status_valor,idx_entrega_status	idx_entrega_status	82	const	99899	100.00	Using index
+
+--- EXECUCAO REAL DEPOIS (EXPLAIN ANALYZE) ---
+EXPLAIN
+-> Aggregate: count(0)  (cost=21021 rows=1) (actual time=153..153 rows=1 loops=1)\n    -> Covering index lookup on entrega using idx_entrega_status (status='RECEBIDA')  (cost=11032 rows=99899) (actual time=0.197..140 rows=160355 loops=1)\n
+
+Tempo medido depois: media 118.5 ms, melhor 107.8 ms (5 execucoes, apos aquecimento)
+
+RESULTADO: 233.5 ms -> 118.5 ms  |  variacao: 49.3%
+
+
+==============================================================================
+CONSULTA 3 - Classificacao por qualidade e faixa de preco
+==============================================================================
+
+CONSULTA:
+SELECT qualidade, COUNT(*) AS entregas, AVG(preco_unitario_kg) AS preco_medio FROM entrega WHERE qualidade = 'A' AND preco_unitario_kg BETWEEN 5.00 AND 9.00 GROUP BY qualidade;
+
+--- PLANO ANTES DO INDICE (EXPLAIN) ---
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	entrega	NULL	ALL	NULL	NULL	NULL	NULL	199798	1.11	Using where
+
+--- EXECUCAO REAL ANTES (EXPLAIN ANALYZE) ---
+EXPLAIN
+-> Group aggregate: count(0), avg(entrega.preco_unitario_kg)  (cost=20386 rows=447) (actual time=117..117 rows=1 loops=1)\n    -> Filter: ((entrega.qualidade = 'A') and (entrega.preco_unitario_kg between 5.00 and 9.00))  (cost=20164 rows=2220) (actual time=0.52..112 rows=29720 loops=1)\n        -> Table scan on entrega  (cost=20164 rows=199798) (actual time=0.488..74.8 rows=200200 loops=1)\n
+
+Tempo medido antes: media 144.1 ms, melhor 134.1 ms (5 execucoes, apos aquecimento)
+
+--- INDICE CRIADO ---
+CREATE INDEX idx_entrega_qualidade_preco ON entrega (qualidade, preco_unitario_kg);
+Justificativa: qualidade primeiro por ser predicado de igualdade; preco_unitario_kg depois por ser predicado de faixa. Igualdade antes de faixa.
+
+--- PLANO DEPOIS DO INDICE (EXPLAIN) ---
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	entrega	NULL	range	idx_entrega_qualidade_preco	idx_entrega_qualidade_preco	9	NULL	54330	100.00	Using where; Using index
+
+--- EXECUCAO REAL DEPOIS (EXPLAIN ANALYZE) ---
+EXPLAIN
+-> Group aggregate: count(0), avg(entrega.preco_unitario_kg)  (cost=16386 rows=2) (actual time=36.5..36.5 rows=1 loops=1)\n    -> Filter: ((entrega.qualidade = 'A') and (entrega.preco_unitario_kg between 5.00 and 9.00))  (cost=10953 rows=54330) (actual time=0.697..31.2 rows=29720 loops=1)\n        -> Covering index range scan on entrega using idx_entrega_qualidade_preco over (qualidade = 'A' AND 5.00 <= preco_unitario_kg <= 9.00)  (cost=10953 rows=54330) (actual time=0.695..22.1 rows=29720 loops=1)\n
+
+Tempo medido depois: media 59.8 ms, melhor 57.4 ms (5 execucoes, apos aquecimento)
+
+RESULTADO: 144.1 ms -> 59.8 ms  |  variacao: 58.5%
+
+
+=== INDICES PRESENTES EM entrega AO FINAL DO ESTUDO ===
+Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment	Visible	Expression
+entrega	0	PRIMARY	1	id_entrega	A	194079	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_data	1	data_entrega	A	5007	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_lote	1	id_safra	A	38	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_lote	2	numero_lote	A	121	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_data_status_valor	1	data_entrega	A	5239	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_data_status_valor	2	status	A	17268	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_data_status_valor	3	quantidade	A	194079	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_data_status_valor	4	preco_unitario_kg	A	194079	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_status	1	status	A	2	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_qualidade_preco	1	qualidade	A	2	NULL	NULL		BTREE			YES	NULL
+entrega	1	idx_entrega_qualidade_preco	2	preco_unitario_kg	A	2264	NULL	NULL		BTREE			YES	NULL

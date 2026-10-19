@@ -1,0 +1,68 @@
+==========================================================================
+B1 - TESTE DE PONTA A PONTA DA APLICACAO
+Executado em 18/10/2026 contra http://127.0.0.1:5000
+==========================================================================
+
+1. AUTENTICACAO (B5)
+  [PASSOU] Acesso sem login e redirecionado para a tela de entrada
+  [PASSOU] Senha errada e recusada
+  [PASSOU] Login inexistente devolve a MESMA mensagem da senha errada
+           evita revelar quais logins existem
+  [PASSOU] Login LEITURA aceito
+  [PASSOU] Login OPERACIONAL aceito
+  [PASSOU] Login FINANCEIRO aceito
+
+2. CONTROLE DE ACESSO POR PERFIL (B5)
+  [PASSOU] LEITURA nao acessa a tela de transacao
+  [PASSOU] OPERACIONAL nao acessa a auditoria
+  [PASSOU] LEITURA nao acessa o formulario de cadastro
+  [PASSOU] FINANCEIRO acessa a tela de transacao
+
+3. CRUD DE QUATRO ENTIDADES (B1)
+  [PASSOU] Listagem de associado responde
+  [PASSOU] Listagem de propriedade responde
+  [PASSOU] Listagem de cultura responde
+  [PASSOU] Listagem de lote responde
+  [PASSOU] CREATE: cultura nova cadastrada
+  [PASSOU] READ: a cultura criada aparece na listagem
+  [PASSOU] UPDATE: alteracao gravada
+  [PASSOU] DELETE: registro removido
+
+4. TRATAMENTO DE ERRO DE RESTRICAO (B1)
+  [PASSOU] UNIQUE violado devolve frase de usuario, nao excecao do driver
+           mensagem exibida: Ja existe uma cultura com esse nome.
+  [PASSOU] A mensagem NAO contem texto cru do MySQL
+  [PASSOU] NOT NULL violado tambem e traduzido
+           mensagem exibida: Um campo obrigatorio ficou em branco.
+  [PASSOU] FK RESTRICT violado explica o que fazer
+           mensagem exibida: Nao da para remover: existem registros dependentes ligados a este. Remova ou transfira os dependentes antes.
+  [PASSOU] CHECK violado (quantidade negativa) e traduzido
+           mensagem exibida: A quantidade planejada precisa ser maior que zero.
+
+5. CONSULTAS PARAMETRIZADAS E RELATORIO (B1)
+  [PASSOU] Consulta 1 (producao) responde com resultado
+  [PASSOU] Consulta 2 (associados) responde com resultado
+  [PASSOU] Relatorio alimentado pela visao responde
+
+6. RESISTENCIA A INJECAO DE SQL (B2)
+  [PASSOU] Resiste a: tautologia classica
+           entrada: ' OR '1'='1
+  [PASSOU] Resiste a: tentativa de destruir tabela
+           entrada: '; DROP TABLE cultura; --
+  [PASSOU] Resiste a: tentativa de extrair CPF por UNION
+           entrada: ' UNION SELECT cpf,1,1,1,1,1,1,1,1 FROM associado_pf -- 
+  [PASSOU] A tabela cultura continua existindo apos as tentativas
+
+7. OPERACAO TRANSACIONAL (B1/B3)
+  [PASSOU] Caminho normal termina em COMMIT
+  [PASSOU] As duas tabelas aparecem no quadro antes/depois
+  [PASSOU] Caminho com falha provocada termina em ROLLBACK
+  [PASSOU] A falha e explicada em linguagem de usuario
+
+8. GATILHOS DE AUDITORIA (B6)
+  [PASSOU] Trilha de auditoria registrou alteracao em prestacao_contas
+  [PASSOU] A trilha mostra valor anterior e valor novo
+
+==========================================================================
+RESULTADO: 36 passaram, 0 falharam
+==========================================================================

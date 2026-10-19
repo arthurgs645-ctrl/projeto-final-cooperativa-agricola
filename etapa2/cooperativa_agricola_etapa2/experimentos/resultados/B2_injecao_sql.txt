@@ -1,0 +1,89 @@
+============================================================================
+B2 - TENTATIVA DE INJECAO DE SQL: VULNERAVEL x PARAMETRIZADA
+Executado em 18/10/2026 20:22 contra o banco real
+============================================================================
+
+Consulta de referencia: busca de associado por nome exato.
+A entrada abaixo e o que um usuario digitaria no campo 'nome'.
+
+----------------------------------------------------------------------------
+CONTROLE - entrada legitima: Ana Cardoso
+----------------------------------------------------------------------------
+  versao vulneravel  : 2 linha(s) -> [(1, 'Ana Cardoso', 'COOP0001'), (21, 'Ana Cardoso', 'COOP0021')]
+  versao parametrizada: 2 linha(s) -> [(1, 'Ana Cardoso', 'COOP0001'), (21, 'Ana Cardoso', 'COOP0021')]
+  As duas se comportam igual com entrada honesta.
+
+  (a tabela associado tem 40 linhas no total)
+
+----------------------------------------------------------------------------
+ATAQUE: ' OR '1'='1
+----------------------------------------------------------------------------
+  Tautologia: fecha a aspa e acrescenta uma condicao sempre verdadeira, tentando devolver a tabela inteira.
+
+  (A) VERSAO VULNERAVEL - concatenacao
+      SQL que chegou ao banco:
+        SELECT id_associado, nome, matricula FROM associado WHERE nome = '' OR '1'='1'
+      resultado: 40 linha(s) devolvida(s)
+      -> VAZAMENTO: devolveu a tabela inteira
+
+  (B) VERSAO PARAMETRIZADA - a que a aplicacao usa
+      SQL que chegou ao banco:
+        SELECT id_associado, nome, matricula FROM associado WHERE nome = %s
+      parametro enviado separadamente: "' OR '1'='1"
+      resultado: 0 linha(s) devolvida(s)
+      -> o texto foi tratado como um NOME a procurar, nao como comando
+
+----------------------------------------------------------------------------
+ATAQUE: ' UNION SELECT 1, cpf, 1 FROM associado_pf -- 
+----------------------------------------------------------------------------
+  UNION: tenta anexar um segundo SELECT para extrair CPF, que este perfil nao pode ler.
+
+  (A) VERSAO VULNERAVEL - concatenacao
+      SQL que chegou ao banco:
+        SELECT id_associado, nome, matricula FROM associado WHERE nome = '' UNION SELECT 1, cpf, 1 FROM associado_pf -- '
+      resultado: erro 1142: 1142 (42000): SELECT command denied to user 'app_leitura'@'localhost' for table 
+      -> o comando quebrou, o que ja revela estrutura interna ao atacante
+
+  (B) VERSAO PARAMETRIZADA - a que a aplicacao usa
+      SQL que chegou ao banco:
+        SELECT id_associado, nome, matricula FROM associado WHERE nome = %s
+      parametro enviado separadamente: "' UNION SELECT 1, cpf, 1 FROM associado_pf -- "
+      resultado: 0 linha(s) devolvida(s)
+      -> o texto foi tratado como um NOME a procurar, nao como comando
+
+----------------------------------------------------------------------------
+ATAQUE: Ana Cardoso' --
+----------------------------------------------------------------------------
+  Comentario: tenta truncar o restante do comando.
+
+  (A) VERSAO VULNERAVEL - concatenacao
+      SQL que chegou ao banco:
+        SELECT id_associado, nome, matricula FROM associado WHERE nome = 'Ana Cardoso' --'
+      resultado: erro 1064: 1064 (42000): You have an error in your SQL syntax; check the manual that corres
+      -> o comando quebrou, o que ja revela estrutura interna ao atacante
+
+  (B) VERSAO PARAMETRIZADA - a que a aplicacao usa
+      SQL que chegou ao banco:
+        SELECT id_associado, nome, matricula FROM associado WHERE nome = %s
+      parametro enviado separadamente: "Ana Cardoso' --"
+      resultado: 0 linha(s) devolvida(s)
+      -> o texto foi tratado como um NOME a procurar, nao como comando
+
+============================================================================
+CONCLUSAO
+============================================================================
+A diferenca nao esta em filtrar ou escapar caracteres, e sim em COMO o comando
+chega ao servidor. Na versao parametrizada, o texto do SQL e enviado e
+compilado uma vez, com marcadores no lugar dos valores; os valores viajam
+depois, por um canal separado do protocolo. Quando o servidor recebe
+"' OR '1'='1", ele ja terminou de decidir o que o comando faz - aquele texto so
+pode ser conteudo do parametro, jamais sintaxe.
+
+Por isso a aplicacao nao tenta remover aspas nem palavras como DROP: essa
+abordagem (lista de bloqueio) falha sempre que alguem encontra uma codificacao
+nao prevista. Parametrizar elimina a classe inteira do problema.
+
+Alem da parametrizacao, a aplicacao ganha uma segunda barreira do proprio
+banco: mesmo que uma injecao passasse, a conta app_leitura nao tem privilegio
+de SELECT em associado_pf, entao o UNION acima nao conseguiria ler CPF de
+qualquer forma. Menor privilegio e parametrizacao se reforcam.
