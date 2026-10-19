@@ -1,6 +1,8 @@
 # Projeto Final — Cooperativa Agrícola — Etapa 2
 
 **Laboratório de Banco de Dados — GPE17M40053 — 2026/2**
+
+**Repositório:** https://github.com/arthurgs645-ctrl/projeto-final-cooperativa-agricola
 *(o código da turma foi corrigido nesta etapa: a Etapa 1 trazia `GPE17M40083`, apontado na devolutiva, critério C5)*
 
 ## Equipe

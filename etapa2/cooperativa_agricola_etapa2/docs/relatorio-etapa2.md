@@ -10,6 +10,7 @@
 | **Ano/semestre** | 2026/2 |
 | **Tema** | Cooperativa Agrícola — safras, lotes rastreáveis, associados com histórico de entregas e prestação de contas |
 | **SGBD** | MySQL 8.0.46 |
+| **Repositório** | https://github.com/arthurgs645-ctrl/projeto-final-cooperativa-agricola |
 
 **Equipe**
 
@@ -100,6 +101,20 @@ O defeito passou despercebido porque **ninguém reconstruiu o banco do zero** �
 Houve, porém, uma alteração de volume com outra finalidade: `sql/07_carga_volume.sql` eleva a tabela `entrega` a 200.200 linhas **para o estudo de desempenho do B4**. Com as 160 entregas originais, qualquer plano de execução é rápido e o otimizador escolhe varredura completa independentemente de índice — medir ganho ali produziria números sem significado. O script é reversível (`DELETE FROM entrega WHERE id_entrega > 160`) e as linhas sintéticas respeitam as mesmas chaves e domínios, inclusive a RN20 recém-imposta por gatilho.
 
 Essa carga de volume **não responde** ao apontamento de realismo: ela resolve um problema de medição, não de qualidade dos dados. O realismo da carga segue pendente.
+
+### Versionamento — item que faltava
+
+O enunciado exige, nos Requisitos Técnicos, *"Git, em repositório remoto acessível ao professor"*, e a avaliação individual considera *"o histórico de commits no repositório"* como uma de suas três fontes.
+
+**A Etapa 1 foi entregue sem repositório.** O pacote trazia um `.gitignore`, o que indica que o versionamento chegou a ser planejado, mas nenhum repositório foi criado — portanto uma das fontes de avaliação individual simplesmente não existia.
+
+Corrigido nesta etapa:
+
+**https://github.com/arthurgs645-ctrl/projeto-final-cooperativa-agricola**
+
+O repositório contém as duas etapas, com o histórico organizado por frente de trabalho, e nenhuma credencial versionada (o `.env` está no `.gitignore`; o que se versiona é o `.env.example`).
+
+**Ressalva honesta sobre o histórico:** os commits foram criados nesta data, ao montar o repositório, e não acompanham o desenvolvimento ao longo do semestre. Eles descrevem corretamente *o que* foi feito em cada frente, mas não servem como medida de *quando* nem de distribuição de esforço entre os integrantes. Registramos isso para que o histórico não seja lido como algo que ele não é.
 
 ### C5 — Documentação
 
