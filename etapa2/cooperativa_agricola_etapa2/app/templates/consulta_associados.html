@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block titulo %}Consulta: associados{% endblock %}
+{% block conteudo %}
+<h2>Consulta parametrizada 2 — desempenho por associado</h2>
+<p class="sub">
+  Junção de 4 tabelas com <code>LEFT JOIN</code> (para não perder associado sem
+  entrega), agregação e <code>HAVING</code>.
+</p>
+
+<div class="cartao">
+<form method="get">
+  <div class="linha">
+    <div>
+      <label for="nome">Nome contém</label>
+      <input id="nome" name="nome" value="{{ filtros.nome }}"
+             placeholder="deixe vazio para todos">
+    </div>
+    <div>
+      <label for="status">Situação</label>
+      <select id="status" name="status">
+        <option value="">todas</option>
+        {% for v in ['ATIVO','SUSPENSO','INATIVO'] %}
+          <option value="{{ v }}" {% if filtros.status==v %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="tipo">Tipo</label>
+      <select id="tipo" name="tipo">
+        <option value="">ambos</option>
+        <option value="PF" {% if filtros.tipo=='PF' %}selected{% endif %}>PF</option>
+        <option value="PJ" {% if filtros.tipo=='PJ' %}selected{% endif %}>PJ</option>
+      </select>
+    </div>
+    <div>
+      <label for="area_minima">Área mínima em hectares</label>
+      <input id="area_minima" name="area_minima" value="{{ filtros.area_minima }}">
+    </div>
+  </div>
+  <button type="submit">Consultar</button>
+</form>
+</div>
+
+{% if erro %}<div class="erro">{{ erro }}</div>{% endif %}
+
+<div class="cartao">
+{% if linhas %}
+  <p class="sub">{{ linhas | length }} linha(s).</p>
+  <table>
+    <tr>{% for c in linhas[0].keys() %}<th>{{ c }}</th>{% endfor %}</tr>
+    {% for linha in linhas %}
+      <tr>{% for v in linha.values() %}<td>{{ '—' if v is none else v }}</td>{% endfor %}</tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p class="vazio">Nenhum resultado para esses filtros.</p>
+{% endif %}
+</div>
+
+<details>
+  <summary>Ver o SQL executado</summary>
+  <pre>{{ sql }}</pre>
+  <p style="font-size:13px;line-height:1.6">
+    Teste de injeção: digite <code>' OR '1'='1</code> no campo de nome. A
+    consulta devolve zero linhas, porque o texto é tratado como um nome a
+    procurar, não como parte do comando. O resultado desse teste está registrado
+    em <code>docs/B2_injecao_sql.md</code>.
+  </p>
+</details>
+{% endblock %}

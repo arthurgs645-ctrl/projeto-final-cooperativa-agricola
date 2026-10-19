@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block titulo %}Consulta: produção{% endblock %}
+{% block conteudo %}
+<h2>Consulta parametrizada 1 — produção por cultura</h2>
+<p class="sub">
+  Junção de 4 tabelas (entrega, lote, cultura, safra) com <code>GROUP BY</code>,
+  agregação e <code>HAVING</code>. Os cinco filtros abaixo viajam como parâmetro.
+</p>
+
+<div class="cartao">
+<form method="get">
+  <div class="linha">
+    <div>
+      <label for="data_ini">Entregas a partir de</label>
+      <input id="data_ini" type="date" name="data_ini" value="{{ filtros.data_ini }}">
+    </div>
+    <div>
+      <label for="data_fim">até</label>
+      <input id="data_fim" type="date" name="data_fim" value="{{ filtros.data_fim }}">
+    </div>
+    <div>
+      <label for="status">Situação</label>
+      <select id="status" name="status">
+        {% for v in ['RECEBIDA','PENDENTE','CANCELADA'] %}
+          <option value="{{ v }}" {% if filtros.status==v %}selected{% endif %}>{{ v }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div>
+      <label for="cultura">Cultura contém</label>
+      <input id="cultura" name="cultura" value="{{ filtros.cultura }}"
+             placeholder="deixe vazio para todas">
+    </div>
+    <div>
+      <label for="kg_minimo">Mínimo de kg (HAVING)</label>
+      <input id="kg_minimo" name="kg_minimo" value="{{ filtros.kg_minimo }}">
+    </div>
+  </div>
+  <button type="submit">Consultar</button>
+</form>
+</div>
+
+{% if erro %}<div class="erro">{{ erro }}</div>{% endif %}
+
+<div class="cartao">
+{% if linhas %}
+  <p class="sub">{{ linhas | length }} linha(s).</p>
+  <table>
+    <tr>{% for c in linhas[0].keys() %}<th>{{ c }}</th>{% endfor %}</tr>
+    {% for linha in linhas %}
+      <tr>{% for v in linha.values() %}<td>{{ '—' if v is none else v }}</td>{% endfor %}</tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p class="vazio">Nenhum resultado para esses filtros.</p>
+{% endif %}
+</div>
+
+<details>
+  <summary>Ver o SQL executado (sempre o mesmo texto, só os parâmetros mudam)</summary>
+  <pre>{{ sql }}</pre>
+  <p style="font-size:13px;line-height:1.6">
+    Repare no filtro de cultura: <code>(%s = '' OR c.nome LIKE CONCAT('%', %s, '%'))</code>.
+    Em vez de acrescentar a cláusula só quando o campo está preenchido — o que
+    obrigaria a montar o SQL por concatenação —, o próprio comando trata o campo
+    vazio. Assim o texto do SQL nunca muda, e o plano de execução pode ser
+    reaproveitado pelo servidor.
+  </p>
+</details>
+{% endblock %}

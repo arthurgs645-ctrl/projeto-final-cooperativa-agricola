@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block titulo %}Relatório consolidado{% endblock %}
+{% block conteudo %}
+<h2>Relatório consolidado por safra</h2>
+<p class="sub">
+  Esta tela não monta junção nenhuma: ela faz <code>SELECT</code> na visão
+  <code>vw_relatorio_safra_associado</code>, definida em
+  <code>sql/04_views.sql</code>. A regra de consolidação mora no banco.
+</p>
+
+<div class="cartao">
+<form method="get">
+  <div class="linha">
+    <div>
+      <label for="id_safra">Safra</label>
+      <select id="id_safra" name="id_safra">
+        <option value="0">todas</option>
+        {% for s in safras %}
+          <option value="{{ s.id_safra }}" {% if id_safra==s.id_safra %}selected{% endif %}>
+            {{ s.descricao }} ({{ s.status }})
+          </option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+  <button type="submit">Gerar relatório</button>
+</form>
+</div>
+
+{% if erro %}<div class="erro">{{ erro }}</div>{% endif %}
+
+<div class="cartao">
+{% if linhas %}
+  <p class="sub">{{ linhas | length }} linha(s).</p>
+  <table>
+    <tr>
+      <th>safra</th><th>associado</th><th>tipo</th><th>lotes</th>
+      <th>entregas</th><th>kg recebidos</th><th>valor entregue</th>
+      <th>bruto</th><th>descontos</th><th>saldo</th><th>prestação</th>
+    </tr>
+    {% for l in linhas %}
+    <tr>
+      <td>{{ l.safra }}</td>
+      <td>{{ l.associado }}</td>
+      <td>{{ l.tipo_pessoa }}</td>
+      <td>{{ l.lotes }}</td>
+      <td>{{ l.entregas }}</td>
+      <td>{{ l.kg_recebidos }}</td>
+      <td>{{ l.valor_entregue }}</td>
+      <td>{{ '—' if l.total_bruto is none else l.total_bruto }}</td>
+      <td>{{ '—' if l.total_descontos is none else l.total_descontos }}</td>
+      <td>{{ '—' if l.saldo is none else l.saldo }}</td>
+      <td>{{ '—' if l.status_prestacao is none else l.status_prestacao }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p class="vazio">Nenhuma linha para essa safra.</p>
+{% endif %}
+</div>
+{% endblock %}

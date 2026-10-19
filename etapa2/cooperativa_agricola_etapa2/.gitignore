@@ -1,0 +1,11 @@
+# Credenciais reais - nunca versionar (B2)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Saidas locais
+*.log

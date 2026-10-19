@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block titulo %}{{ cfg.rotulo }}{% endblock %}
+{% block conteudo %}
+<h2>{{ cfg.rotulo }}</h2>
+<p class="sub">
+  Tabela <code>{{ cfg.tabela }}</code> · chave {{ cfg.pk | join(', ') }} ·
+  mostrando até 200 registros.
+</p>
+
+{% if usuario.perfil == 'OPERACIONAL' %}
+  <a class="botao" href="{{ url_for('cadastro_novo', entidade=entidade) }}">
+    Novo registro
+  </a>
+{% endif %}
+
+<div class="cartao" style="margin-top:14px">
+{% if linhas %}
+  <table>
+    <tr>
+      {% for coluna in linhas[0].keys() %}<th>{{ coluna }}</th>{% endfor %}
+      {% if usuario.perfil == 'OPERACIONAL' %}<th>ações</th>{% endif %}
+    </tr>
+    {% for linha in linhas %}
+    <tr>
+      {% for valor in linha.values() %}
+        <td>{{ '—' if valor is none else valor }}</td>
+      {% endfor %}
+      {% if usuario.perfil == 'OPERACIONAL' %}
+      <td class="acoes" style="white-space:nowrap">
+        {% set ns = namespace(qs='') %}
+        {% for coluna in cfg.pk %}
+          {% set ns.qs = ns.qs + ('&' if not loop.first else '')
+                         + coluna + '=' + (linha[coluna] | string | urlencode) %}
+        {% endfor %}
+        <a class="botao botao-neutro"
+           href="{{ url_for('cadastro_editar', entidade=entidade) }}?{{ ns.qs }}">editar</a>
+        <form method="post" style="display:inline"
+              action="{{ url_for('cadastro_remover', entidade=entidade) }}"
+              onsubmit="return confirm('Remover este registro?')">
+          {% for coluna in cfg.pk %}
+            <input type="hidden" name="{{ coluna }}" value="{{ linha[coluna] }}">
+          {% endfor %}
+          <button class="botao-perigo" type="submit">remover</button>
+        </form>
+      </td>
+      {% endif %}
+    </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p class="vazio">Nenhum registro para mostrar.</p>
+{% endif %}
+</div>
+{% endblock %}

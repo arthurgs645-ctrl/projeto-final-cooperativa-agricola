@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block titulo %}Fechar prestação de contas{% endblock %}
+{% block conteudo %}
+<h2>Operação transacional — fechar prestação de contas</h2>
+<p class="sub">
+  Uma transação que altera <strong>duas tabelas</strong>:
+  <code>prestacao_contas</code> e <code>movimento_financeiro</code>.
+  Ou as duas gravam, ou nenhuma.
+</p>
+
+<div class="cartao">
+<form method="post">
+  <div class="linha">
+    <div>
+      <label for="id_associado">Associado (id)</label>
+      <input id="id_associado" name="id_associado" value="{{ id_associado }}">
+    </div>
+    <div>
+      <label for="id_safra">Safra (id)</label>
+      <input id="id_safra" name="id_safra" value="{{ id_safra }}">
+    </div>
+    <div>
+      <label for="desconto">Taxa da cooperativa (%)</label>
+      <input id="desconto" name="desconto" value="{{ desconto }}">
+    </div>
+  </div>
+  <button type="submit" name="acao" value="sucesso">Executar (caminho normal)</button>
+  <button type="submit" name="acao" value="falha" class="botao-perigo">
+    Executar com falha provocada
+  </button>
+</form>
+<p style="font-size:13px;color:#52525b;margin-top:14px;line-height:1.6">
+  O segundo botão injeta um desconto maior que o valor bruto
+  <em>depois</em> que a primeira tabela já foi escrita, violando
+  <code>ck_prestacao_descontos</code>. Serve para mostrar que o
+  <code>ROLLBACK</code> desfaz também o que já havia sido gravado.
+</p>
+</div>
+
+{% if passos %}
+<div class="cartao">
+  <h2 style="font-size:16px">Passos executados dentro da transação</h2>
+  {% for passo in passos %}
+    <div class="passo {% if 'ROLLBACK' in passo or 'FALHA' in passo or 'motivo' in passo %}passo-erro{% endif %}">
+      {{ loop.index }}. {{ passo }}
+    </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+{% if estado_antes or estado_depois %}
+<div class="cartao">
+  <h2 style="font-size:16px">Estado das duas tabelas, antes e depois</h2>
+  <table>
+    <tr>
+      <th>momento</th><th>bruto</th><th>descontos</th><th>saldo</th>
+      <th>status</th><th>movimentos</th><th>total créditos</th>
+    </tr>
+    <tr>
+      <td><strong>antes</strong></td>
+      {% if estado_antes %}
+        <td>{{ estado_antes.total_bruto }}</td>
+        <td>{{ estado_antes.total_descontos }}</td>
+        <td>{{ estado_antes.saldo }}</td>
+        <td>{{ estado_antes.status }}</td>
+        <td>{{ estado_antes.movimentos }}</td>
+        <td>{{ estado_antes.total_creditos }}</td>
+      {% else %}
+        <td colspan="6" class="vazio">não havia prestação para esse associado nessa safra</td>
+      {% endif %}
+    </tr>
+    <tr>
+      <td><strong>depois</strong></td>
+      {% if estado_depois %}
+        <td>{{ estado_depois.total_bruto }}</td>
+        <td>{{ estado_depois.total_descontos }}</td>
+        <td>{{ estado_depois.saldo }}</td>
+        <td>{{ estado_depois.status }}</td>
+        <td>{{ estado_depois.movimentos }}</td>
+        <td>{{ estado_depois.total_creditos }}</td>
+      {% else %}
+        <td colspan="6" class="vazio">continua sem prestação — o ROLLBACK desfez tudo</td>
+      {% endif %}
+    </tr>
+  </table>
+  <p style="font-size:13px;color:#52525b;margin-top:12px;line-height:1.6">
+    Na execução com falha provocada, as duas linhas ficam idênticas: é a
+    evidência de que o banco permaneceu íntegro, sem prestação gravada pela
+    metade nem crédito órfão.
+  </p>
+</div>
+{% endif %}
+{% endblock %}

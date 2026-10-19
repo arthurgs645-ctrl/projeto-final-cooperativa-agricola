@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block titulo %}Auditoria{% endblock %}
+{% block conteudo %}
+<h2>Trilha de auditoria</h2>
+<p class="sub">
+  Gravada pelos gatilhos <code>trg_entrega_auditoria_update</code> e
+  <code>trg_prestacao_auditoria_update</code>. Uma linha por campo alterado,
+  com valor anterior, valor novo, autor e data.
+</p>
+
+{% if erro %}<div class="erro">{{ erro }}</div>{% endif %}
+
+<div class="cartao">
+{% if linhas %}
+  <table>
+    <tr>
+      <th>tabela</th><th>operação</th><th>registro</th><th>campo</th>
+      <th>valor anterior</th><th>valor novo</th><th>autor</th><th>quando</th>
+    </tr>
+    {% for l in linhas %}
+    <tr>
+      <td>{{ l.tabela }}</td>
+      <td>{{ l.operacao }}</td>
+      <td>{{ l.chave_registro }}</td>
+      <td>{{ l.campo }}</td>
+      <td>{{ '—' if l.valor_anterior is none else l.valor_anterior }}</td>
+      <td>{{ '—' if l.valor_novo is none else l.valor_novo }}</td>
+      <td>{{ l.usuario }}</td>
+      <td>{{ l.data_hora }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+{% else %}
+  <p class="vazio">
+    Nenhum registro ainda. Execute a transação de fechamento duas vezes para o
+    mesmo associado e safra: a segunda execução altera a prestação existente e
+    dispara o gatilho.
+  </p>
+{% endif %}
+</div>
+{% endblock %}

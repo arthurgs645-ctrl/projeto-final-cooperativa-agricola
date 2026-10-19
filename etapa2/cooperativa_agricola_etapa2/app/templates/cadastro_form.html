@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block titulo %}{{ cfg.rotulo }}{% endblock %}
+{% block conteudo %}
+<h2>{{ 'Novo registro' if novo else 'Editar registro' }} — {{ cfg.rotulo }}</h2>
+<p class="sub">Tabela <code>{{ cfg.tabela }}</code></p>
+
+<div class="cartao" style="max-width:620px">
+<form method="post">
+  {% for coluna in cfg.colunas %}
+    {% if not (novo and cfg.auto and coluna in cfg.pk) %}
+      <label for="{{ coluna }}">{{ coluna }}</label>
+      {% if coluna == 'tipo_pessoa' %}
+        <select id="{{ coluna }}" name="{{ coluna }}">
+          <option value="PF" {% if registro.get(coluna)=='PF' %}selected{% endif %}>PF</option>
+          <option value="PJ" {% if registro.get(coluna)=='PJ' %}selected{% endif %}>PJ</option>
+        </select>
+      {% elif coluna == 'status' and cfg.tabela == 'associado' %}
+        <select id="{{ coluna }}" name="{{ coluna }}">
+          {% for v in ['ATIVO','SUSPENSO','INATIVO'] %}
+            <option value="{{ v }}" {% if registro.get(coluna)==v %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      {% elif coluna == 'status' and cfg.tabela == 'propriedade' %}
+        <select id="{{ coluna }}" name="{{ coluna }}">
+          {% for v in ['ATIVA','EM_REGULARIZACAO','INATIVA'] %}
+            <option value="{{ v }}" {% if registro.get(coluna)==v %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      {% elif coluna == 'status' and cfg.tabela == 'lote' %}
+        <select id="{{ coluna }}" name="{{ coluna }}">
+          {% for v in ['PLANEJADO','EM_PRODUCAO','PRONTO_ENTREGA','ENCERRADO'] %}
+            <option value="{{ v }}" {% if registro.get(coluna)==v %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      {% else %}
+        <input id="{{ coluna }}" name="{{ coluna }}"
+               value="{{ registro.get(coluna) if registro.get(coluna) is not none else '' }}"
+               {% if not novo and coluna in cfg.pk %}readonly{% endif %}>
+      {% endif %}
+    {% endif %}
+  {% endfor %}
+  <button type="submit">{{ 'Cadastrar' if novo else 'Gravar alteração' }}</button>
+  <a class="botao botao-neutro"
+     href="{{ url_for('cadastro_listar', entidade=entidade) }}">Cancelar</a>
+</form>
+</div>
+
+<div class="cartao">
+  <details open>
+    <summary>Por que este formulário não permite injeção de SQL</summary>
+    <p style="font-size:13px;line-height:1.6">
+      Os nomes de coluna vêm da definição em <code>app/db.py</code>, que é uma
+      lista fechada no código — um campo extra inserido no HTML pelo navegador é
+      descartado antes de chegar ao SQL. Os valores digitados nunca entram no
+      texto do comando: viajam como parâmetro para o driver, que os envia
+      separados do SQL já compilado.
+    </p>
+  </details>
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block conteudo %}
+<h2>Painel</h2>
+<p class="sub">
+  Você está conectado com o perfil <strong>{{ usuario.perfil }}</strong>.
+  A aplicação se conecta ao MySQL com a conta de banco correspondente a esse
+  perfil, então o próprio SGBD recusa qualquer operação fora dele.
+</p>
+
+<div class="cartao">
+  <h2 style="font-size:16px">O que este perfil pode fazer</h2>
+  <table>
+    <tr><th>Tela</th><th>LEITURA</th><th>OPERACIONAL</th><th>FINANCEIRO</th></tr>
+    <tr><td>Consultar cadastros</td><td>sim</td><td>sim</td><td>sim</td></tr>
+    <tr><td>Criar / alterar / remover cadastros</td><td>não</td><td>sim</td><td>não</td></tr>
+    <tr><td>Consultas parametrizadas e relatório</td><td>sim</td><td>sim</td><td>sim</td></tr>
+    <tr><td>Fechar prestação de contas (transação)</td><td>não</td><td>não</td><td>sim</td></tr>
+    <tr><td>Ver trilha de auditoria</td><td>não</td><td>não</td><td>sim</td></tr>
+    <tr><td>Ver CPF/CNPJ sem máscara</td><td>não</td><td>não</td><td>não</td></tr>
+  </table>
+</div>
+
+<div class="cartao">
+  <h2 style="font-size:16px">Onde está cada requisito da Etapa 2</h2>
+  <table>
+    <tr><th>Item</th><th>Onde ver</th></tr>
+    <tr><td>B1 — CRUD de 4 entidades</td><td>Menu: Associados, Propriedades, Culturas, Lotes</td></tr>
+    <tr><td>B1 — Consultas parametrizadas</td><td>Consulta: produção · Consulta: associados</td></tr>
+    <tr><td>B1 — Relatório por visão</td><td>Relatório (lê <code>vw_relatorio_safra_associado</code>)</td></tr>
+    <tr><td>B1/B3 — Transação multitabela</td><td>Fechar prestação (perfil FINANCEIRO)</td></tr>
+    <tr><td>B1 — Erro de restrição tratado</td><td>Tente remover um associado que tem propriedades</td></tr>
+    <tr><td>B2 — Prepared statements</td><td><code>app/db.py</code>; SQL exibido nas telas de consulta</td></tr>
+    <tr><td>B5 — Perfis e visão restrita</td><td>Entre com os três logins e compare o menu</td></tr>
+    <tr><td>B6 — Gatilhos de auditoria</td><td>Auditoria (após executar a transação)</td></tr>
+  </table>
+</div>
+{% endblock %}
