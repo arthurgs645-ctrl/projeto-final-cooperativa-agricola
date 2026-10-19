@@ -1,0 +1,22 @@
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# MySQL / Workbench
+*.bak
+*.tmp
+*.mwb.bak
+
+# Editor/IDE
+.vscode/
+.idea/
+*.swp
+
+# Python local helpers
+__pycache__/
+*.pyc
+
+# Credenciais e arquivos locais
+.env
+.env.*
+secrets.*

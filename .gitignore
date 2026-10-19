@@ -1,0 +1,31 @@
+# Credenciais reais - NUNCA versionar (requisito B2 do enunciado)
+.env
+.env.*
+!.env.example
+secrets.*
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# MySQL / Workbench
+*.bak
+*.tmp
+*.mwb.bak
+
+# Pacotes gerados para entrega (o conteudo esta versionado em pasta)
+*.zip
+
+# Saidas locais
+*.log

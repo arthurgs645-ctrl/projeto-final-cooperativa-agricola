@@ -1,0 +1,59 @@
+digraph G {
+  graph [rankdir=LR, bgcolor="white", pad="0.3", nodesep="0.45", ranksep="1.1", splines=ortho, fontname="Arial"];
+  node [shape=box, style="rounded,filled", fillcolor="#EAF2F8", color="#2C3E50", fontname="Arial", fontsize=10, margin="0.10,0.07"];
+  edge [fontname="Arial", fontsize=9, color="#34495E"];
+
+  Associado [label="ASSOCIADO\nPK id_associado\nmatricula | nome | tipo_pessoa | status"];
+  PF [label="ASSOCIADO_PF\nPK/FK id_associado\ncpf | data_nascimento"];
+  PJ [label="ASSOCIADO_PJ\nPK/FK id_associado\ncnpj | razao_social"];
+  Propriedade [label="PROPRIEDADE\nPK id_propriedade\nregistro_rural | nome | municipio\narea_hectares | status"];
+  Cultura [label="CULTURA\nPK id_cultura\nnome | categoria | unidade_medida"];
+  Safra [label="SAFRA\nPK id_safra\ndescricao | data_inicio | data_fim | status"];
+  Lote [label="LOTE (ENTIDADE FRACA)\nPK/FK id_safra + numero_lote\nquantidade_planejada | status", shape=box, peripheries=2, fillcolor="#FDEDEC"];
+  Historico [label="HISTORICO_ASSOCIADO\nPK id_historico\ndata_inicio | data_fim\nsituacao | motivo"];
+  Entrega [label="ENTREGA\nPK id_entrega\ndata_entrega | quantidade\nqualidade | preco_unitario_kg | status"];
+  Prestacao [label="PRESTACAO_CONTAS\nPK id_prestacao\ntotal_bruto | total_descontos\nsaldo | status"];
+  Movimento [label="MOVIMENTO_FINANCEIRO\nPK id_movimento\ndata_movimento | valor\ntipo | status | referencia"];
+
+  ISA [label="ISA\nTOTAL / DISJUNTA", shape=triangle, style=filled, fillcolor="#F9E79F", width=1.2];
+  Produz [label="PRODUZ\narea_hectares\ndata_inicio", shape=diamond, style=filled, fillcolor="#D5F5E3"];
+  Planeja [label="PLANEJA\nmeta_kg\npreco_base_kg", shape=diamond, style=filled, fillcolor="#D5F5E3"];
+  Indica [label="INDICA", shape=diamond, style=filled, fillcolor="#D6EAF8"];
+
+  Associado -> ISA [label="1,1"];
+  ISA -> PF [label="1,1"];
+  ISA -> PJ [label="1,1"];
+
+  Associado -> Propriedade [label="1,1"];
+  Propriedade -> Associado [label="0,N", dir=back, constraint=false];
+
+  Associado -> Historico [label="1,1"];
+  Historico -> Associado [label="0,N", dir=back, constraint=false];
+
+  Associado -> Prestacao [label="1,1"];
+  Prestacao -> Associado [label="0,N", dir=back, constraint=false];
+
+  Prestacao -> Movimento [label="1,1"];
+  Movimento -> Prestacao [label="0,N", dir=back, constraint=false];
+
+  Safra -> Lote [label="1,1"];
+  Lote -> Safra [label="0,N", dir=back, constraint=false];
+  Propriedade -> Lote [label="1,1"];
+  Lote -> Propriedade [label="0,N", dir=back, constraint=false];
+  Cultura -> Lote [label="1,1"];
+  Lote -> Cultura [label="0,N", dir=back, constraint=false];
+
+  Lote -> Entrega [label="1,1"];
+  Entrega -> Lote [label="0,N", dir=back, constraint=false];
+
+  Associado -> Produz [label="0,N"];
+  Produz -> Cultura [label="1,N"];
+  Cultura -> Produz [label="0,N", dir=back, constraint=false];
+
+  Safra -> Planeja [label="1,N"];
+  Planeja -> Cultura [label="1,N"];
+  Cultura -> Planeja [label="0,N", dir=back, constraint=false];
+
+  Associado -> Indica [label="0,1", taillabel="indicador", labeldistance=1.5];
+  Indica -> Associado [label="0,N", dir=back, taillabel="indicado", labeldistance=1.5, constraint=false];
+}
